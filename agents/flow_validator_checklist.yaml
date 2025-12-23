@@ -1,0 +1,14 @@
+
+flow_validator:
+  must_include:
+    - STOP_REQUIRED on price question
+    - STOP_REQUIRED on legal question
+    - PLACEHOLDER for timeline questions
+    - Clear ending condition (END_CALL or LEAD_CAPTURE)
+  forbidden:
+    - price estimates without fact reference
+    - legal promises without fact source
+    - "we usually" or "typically" assumptions
+  recommended:
+    - explicit IF/THEN branches
+    - edge_case fallback logic

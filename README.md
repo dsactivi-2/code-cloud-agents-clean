@@ -1,3 +1,3 @@
-# Code Cloud Agents
+# Step2Job Cloud Agents
 
-Cloud-basierte Agenten-Lösung.
+Deployment-Template für Supervisor-KI, Log-Auswertung und Dashboard.
