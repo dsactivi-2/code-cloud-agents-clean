@@ -1,16 +1,20 @@
 /**
  * Supervisor Notifications Service
  * Connects Mujo bot (Slack) with Supervisor system
+ * With Mujo's multilingual humor (DE/EN/BS)
  */
 
 import { createSlackClient, type SlackMessage } from "../integrations/slack/client.js";
 import type { StopScoreResult, Severity } from "../audit/stopScorer.js";
 import type { SystemHealth } from "../meta/metaSupervisor.js";
 import type { StatusProposal } from "../assistant/cloudAssistant.js";
+import { addHumor, getMujoSignature, type Language } from "../integrations/slack/humor.js";
 
 export interface NotificationConfig {
   channel: string; // Default channel for notifications (e.g., "#alerts")
   enabled: boolean;
+  language: Language; // Mujo's language: de, en, or bs
+  humor: boolean; // Enable Mujo's humor
   thresholds: {
     stopScore: number; // Notify if stop score >= this value (default: 40)
     stopRate: number; // Notify if system stop rate >= this value (default: 0.3)
@@ -30,6 +34,8 @@ export class SupervisorNotifications {
     this.config = {
       channel: config?.channel || process.env.SLACK_ALERT_CHANNEL || "#alerts",
       enabled: config?.enabled ?? process.env.SLACK_NOTIFICATIONS_ENABLED === "true",
+      language: config?.language || (process.env.MUJO_LANGUAGE as Language) || "de",
+      humor: config?.humor ?? process.env.MUJO_HUMOR_ENABLED === "true",
       thresholds: {
         stopScore: config?.thresholds?.stopScore ?? 40,
         stopRate: config?.thresholds?.stopRate ?? 0.3,
@@ -107,7 +113,7 @@ export class SupervisorNotifications {
       elements: [
         {
           type: "mrkdwn",
-          text: `🤖 Supervisor Alert | ${new Date().toLocaleString()}`,
+          text: this.getFooter("Supervisor Alert"),
         },
       ],
     });
@@ -197,7 +203,7 @@ export class SupervisorNotifications {
       elements: [
         {
           type: "mrkdwn",
-          text: `🤖 Meta Supervisor | ${new Date().toLocaleString()}`,
+          text: this.getFooter("Meta Supervisor"),
         },
       ],
     });
@@ -300,7 +306,7 @@ export class SupervisorNotifications {
       elements: [
         {
           type: "mrkdwn",
-          text: `🤖 Cloud Assistant | ${new Date().toLocaleString()}`,
+          text: this.getFooter("Cloud Assistant"),
         },
       ],
     });
@@ -351,7 +357,7 @@ export class SupervisorNotifications {
           elements: [
             {
               type: "mrkdwn",
-              text: `🤖 Supervisor System | ${new Date().toLocaleString()}`,
+              text: this.getFooter("Supervisor System"),
             },
           ],
         },
@@ -395,6 +401,15 @@ export class SupervisorNotifications {
       default:
         return "#808080";
     }
+  }
+
+  /**
+   * Get footer with Mujo's signature
+   */
+  private getFooter(source: string): string {
+    const timestamp = new Date().toLocaleString();
+    const signature = getMujoSignature(this.config.language);
+    return `${signature} | ${source} | ${timestamp}`;
   }
 
   /**
