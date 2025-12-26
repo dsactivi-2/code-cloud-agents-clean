@@ -206,6 +206,202 @@ CLOUD_ASSISTANT (Execute + Report + Evidence)
 
 ---
 
+## 🔐 GIT-WORKFLOW FÜR ALLE AGENTEN (PFLICHT!)
+
+### Grundregeln
+```yaml
+# Server .env Konfiguration
+GIT_MODE=branch_push              # Immer Feature-Branch erstellen
+PR_REQUIRE_GREEN_CI=true          # CI muss grün sein vor Merge
+RUN_MODE=allowlist                # Nur erlaubte Commands
+REDACT_SECRETS=true               # Secrets aus Logs entfernen
+```
+
+### ❌ VERBOTEN
+1. **NIEMALS** direkt auf `main` branch pushen
+2. **NIEMALS** auf `main` committen
+3. **NIEMALS** force push (`git push --force`)
+4. **NIEMALS** Hooks überspringen (`--no-verify`)
+5. **NIEMALS** Git-History umschreiben (außer auf eigenem Branch vor Push)
+
+### ✅ PFLICHT-WORKFLOW
+
+#### Schritt 1: Feature-Branch erstellen
+```bash
+# Branch-Naming Convention:
+git checkout -b agent-aX-feature-name
+
+# Beispiele:
+git checkout -b agent-a2-setup
+git checkout -b agent-a5-design-ux
+git checkout -b agent-fixes-and-features
+```
+
+#### Schritt 2: Änderungen committen
+```bash
+# Alle Änderungen stagen
+git add -A
+
+# Commit mit Co-Authored-By
+git commit -m "feat: implement feature X
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+**Commit-Message Format:**
+```
+<type>: <kurze beschreibung>
+
+[Optionale längere Beschreibung]
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
+**Types:**
+- `feat:` - Neues Feature
+- `fix:` - Bug-Fix
+- `docs:` - Dokumentation
+- `style:` - Code-Formatierung
+- `refactor:` - Code-Refactoring
+- `test:` - Tests hinzufügen
+- `chore:` - Build/Dependencies
+
+#### Schritt 3: Push zu origin
+```bash
+# Ersten Push mit -u flag
+git push -u origin agent-aX-feature-name
+
+# Weitere Pushes
+git push
+```
+
+#### Schritt 4: Pull Request erstellen
+```bash
+# Mit GitHub CLI (gh)
+gh pr create --title "feat: implement feature X" --body "$(cat <<'EOF'
+## Summary
+- Was wurde implementiert
+- Warum wurde es implementiert
+
+## Changes
+- Datei 1: Was geändert
+- Datei 2: Was geändert
+
+## Test plan
+- [ ] Backend startet
+- [ ] Frontend startet
+- [ ] Tests bestehen
+- [ ] Manuelle Tests durchgeführt
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+#### Schritt 5: Merge-Reihenfolge einhalten
+```
+A2 (Setup) → main (ZUERST)
+    ↓
+A1 (Docs) → main
+    ↓
+A3 (Integrations) → main
+    ↓
+A4 (Docs) → main
+    ↓
+A5 (Design) → main (ZULETZT)
+```
+
+### 🔍 Git-Status vor JEDEM Commit prüfen
+```bash
+# 1. Status prüfen
+git status
+
+# 2. Diff prüfen (was wird committed)
+git diff --staged
+
+# 3. Sicherstellen dass keine Secrets committed werden
+git diff --staged | grep -i "api_key\|password\|secret\|token"
+
+# 4. Erst dann committen
+git commit -m "..."
+```
+
+### 🚨 Wenn Hook fehlschlägt
+
+**Wenn Commit ABGELEHNT wurde (Hook rejected):**
+```bash
+# ❌ NICHT amend verwenden!
+# ✅ Problem fixen, dann NEUEN Commit erstellen
+git add -A
+git commit -m "fix: resolve hook issues"
+```
+
+**Wenn Commit ERFOLGREICH war, aber Hook Auto-Modifications gemacht hat:**
+```bash
+# Nur WENN:
+# 1. HEAD commit wurde von dir erstellt (git log -1)
+# 2. Commit ist NICHT gepusht (git status zeigt "ahead")
+# DANN darfst du amend verwenden:
+git add -A
+git commit --amend --no-edit
+```
+
+### 📋 Vor jedem Push - Checkliste
+
+- [ ] Branch-Name folgt Convention (`agent-aX-*`)
+- [ ] Commit-Message hat Co-Authored-By
+- [ ] Keine `.env` oder Secrets im Commit
+- [ ] `git status` ist sauber
+- [ ] Backend startet ohne Fehler
+- [ ] Frontend startet ohne Fehler
+- [ ] Tests bestehen (`npm test`)
+- [ ] Keine TypeScript-Fehler
+
+### 🔗 Troubleshooting
+
+#### Problem: "fatal: could not read Username"
+```bash
+# GitHub CLI authentifizieren
+gh auth login
+```
+
+#### Problem: "rejected: cannot push to main"
+```bash
+# Falscher Branch! Zurück zu Feature-Branch
+git checkout agent-aX-feature-name
+```
+
+#### Problem: "Your branch is behind"
+```bash
+# Erst pullen, dann pushen
+git pull origin agent-aX-feature-name
+git push
+```
+
+#### Problem: Merge-Konflikt
+```bash
+# Lokale Änderungen sichern
+git stash
+
+# Remote holen
+git pull
+
+# Änderungen zurück
+git stash pop
+
+# Konflikte lösen (in Files)
+# Dann:
+git add -A
+git commit -m "fix: resolve merge conflicts"
+git push
+```
+
+---
+
 ## AI-Provider Integration
 
 ### Priorität
