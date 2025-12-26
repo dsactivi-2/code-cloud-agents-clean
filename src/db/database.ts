@@ -4,6 +4,7 @@
 
 import BetterSqlite3 from "better-sqlite3";
 import { randomUUID } from "crypto";
+import { initSettingsTables } from "./settings.js";
 
 export interface Task {
   id: string;
@@ -108,6 +109,9 @@ export function initDatabase(): Database {
       CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
       CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON chat_messages(chat_id);
     `);
+
+    // Initialize settings tables
+    initSettingsTables(db);
   } catch (error) {
     console.warn("SQLite unavailable, using in-memory fallback:", error);
     db = new BetterSqlite3(":memory:");
@@ -137,6 +141,9 @@ export function initDatabase(): Database {
         created_at TEXT NOT NULL
       );
     `);
+
+    // Initialize settings tables in fallback
+    initSettingsTables(db);
   }
 
   return {

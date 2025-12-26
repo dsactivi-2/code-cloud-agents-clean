@@ -16,6 +16,7 @@ import { createGitHubRouter } from "./api/github.js";
 import { createLinearRouter } from "./api/linear.js";
 import { createGitHubWebhookRouter } from "./webhooks/github.js";
 import { createLinearWebhookRouter } from "./webhooks/linear.js";
+import { createSettingsRouter } from "./api/settings.js";
 import { handleSlackEvents } from "./api/slack-events.js";
 import { WebSocketManager } from "./websocket/server.js";
 import { initDatabase } from "./db/database.js";
@@ -64,6 +65,7 @@ async function main() {
   app.use("/api/demo", createDemoRouter(db));
   app.use("/api/github", createGitHubRouter());
   app.use("/api/linear", createLinearRouter());
+  app.use("/api/settings", createSettingsRouter(db));
 
   // Slack Events (Mujo Interactive Bot)
   app.post("/api/slack/events", handleSlackEvents);
@@ -144,13 +146,22 @@ async function main() {
     console.log("   POST /api/webhooks/github  - GitHub webhook events");
     console.log("   POST /api/webhooks/linear  - Linear webhook events");
     console.log("   GET  /api/webhooks/linear/test - Test Linear webhook");
-<<<<<<< HEAD
-=======
+    console.log("");
+    console.log("⚙️  Settings Management:");
+    console.log("   GET    /api/settings/user/:userId           - Get user settings");
+    console.log("   PUT    /api/settings/user/:userId           - Update user settings");
+    console.log("   DELETE /api/settings/user/:userId           - Delete user settings");
+    console.log("   GET    /api/settings/preferences/:userId    - Get user preferences");
+    console.log("   PATCH  /api/settings/preferences/:userId    - Update preferences");
+    console.log("   GET    /api/settings/system                 - Get system settings (Admin)");
+    console.log("   GET    /api/settings/system/:key            - Get system setting");
+    console.log("   PUT    /api/settings/system                 - Update system settings (Admin)");
+    console.log("   GET    /api/settings/history/user/:userId   - Get user history");
+    console.log("   GET    /api/settings/history/system/:key    - Get system history");
     console.log("");
     console.log("🔌 WebSocket Real-time:");
     console.log("   WS   ws://localhost:" + PORT + "/ws?token=YOUR_TOKEN");
     console.log("   Messages: agent_status, chat_message, notification, user_presence");
->>>>>>> origin/main
   });
 
   // Export wsManager for use in other modules
