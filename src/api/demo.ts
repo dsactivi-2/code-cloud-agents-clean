@@ -5,14 +5,16 @@
  */
 
 import { Router, type Request, type Response } from "express";
+import bcrypt from "bcrypt";
 import { DemoInviteManager } from "../demo/inviteManager.ts";
 import type { CreateInviteRequest, RedeemInviteRequest } from "../demo/types.ts";
 import type { Database } from "../db/database.ts";
-import { requireAdmin, requireCronAuth, type AuthenticatedRequest } from "../auth/middleware.ts";
+import { requireAdmin, requireCronAuth, type AuthenticatedRequest, createRateLimiter } from "../auth/middleware.ts";
 
 export function createDemoRouter(db: Database): Router {
   const router = Router();
   const demoManager = new DemoInviteManager(db);
+  const redeemLimiter = createRateLimiter(5, 60000);
 
   /**
    * POST /api/demo/invites
@@ -101,7 +103,7 @@ export function createDemoRouter(db: Database): Router {
    * POST /api/demo/redeem
    * Löst Invite ein und erstellt Demo-User
    */
-  router.post("/redeem", async (req: Request, res: Response) => {
+  router.post("/redeem", redeemLimiter, async (req: Request, res: Response) => {
     try {
       const request: RedeemInviteRequest = req.body;
 
@@ -116,8 +118,8 @@ export function createDemoRouter(db: Database): Router {
         return res.status(400).json({ error: "password must be at least 8 characters" });
       }
 
-      // TODO: Hash password properly (use bcrypt)
-      const passwordHash = `hashed_${request.password}`;
+      // Hash password with bcrypt (salt rounds: 10)
+      const passwordHash = await bcrypt.hash(request.password, 10);
 
       const demoUser = demoManager.redeemInvite(request, passwordHash);
 
