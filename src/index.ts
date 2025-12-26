@@ -24,6 +24,7 @@ import { WebSocketManager } from "./websocket/server.js";
 import { initDatabase } from "./db/database.js";
 import { initQueue } from "./queue/queue.js";
 import { createEnforcementGate } from "./audit/enforcementGate.js";
+import { setupSwagger } from "./swagger/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,6 +74,9 @@ async function main() {
 
   // Slack Events (Mujo Interactive Bot)
   app.post("/api/slack/events", handleSlackEvents);
+
+  // Setup Swagger UI Documentation
+  setupSwagger(app);
 
   // API info endpoint
   app.get("/api", (_req, res) => {
