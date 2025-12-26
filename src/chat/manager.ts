@@ -11,6 +11,9 @@ import type {
 } from "./types.ts";
 import { costTracker } from "../billing/costTracker.ts";
 import { selectModel } from "../billing/modelSelector.ts";
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export class ChatManager {
   private storage: ChatStorage;
@@ -66,7 +69,7 @@ export class ChatManager {
     const modelToUse = request.model || modelRecommendation.model;
     const providerToUse = request.modelProvider || modelRecommendation.provider;
 
-    // Call AI provider (simplified - you'll need to implement actual provider calls)
+    // Call AI provider
     const aiResponse = await this.callAIProvider(
       providerToUse,
       modelToUse,
@@ -204,7 +207,7 @@ export class ChatManager {
   }
 
   /**
-   * Call AI provider (placeholder - implement actual provider logic)
+   * Call AI provider with actual API integration
    */
   private async callAIProvider(
     provider: string,
@@ -216,20 +219,68 @@ export class ChatManager {
     tokens?: { input: number; output: number; total: number };
     cost?: { usd: number; eur: number };
   }> {
-    // TODO: Implement actual provider calls
-    // For now, return mock response
     console.log(`[Chat] Calling ${provider}/${model} for agent ${agentName}`);
 
-    // Simulate AI response
-    const content = `This is a simulated response from ${agentName} using ${model}.
+    try {
+      switch (provider.toLowerCase()) {
+        case "anthropic":
+          return await this.callAnthropic(model, prompt, agentName);
+        case "openai":
+          return await this.callOpenAI(model, prompt, agentName);
+        case "gemini":
+          return await this.callGemini(model, prompt, agentName);
+        default:
+          throw new Error(`Unsupported provider: ${provider}`);
+      }
+    } catch (error: any) {
+      console.error(`[Chat] Error calling ${provider}:`, error);
+      throw new Error(
+        `Failed to call ${provider}: ${error.message || "Unknown error"}`
+      );
+    }
+  }
 
-In a real implementation, this would call the AI provider API (Anthropic/OpenAI/Gemini) with the prompt and return the actual response.
+  /**
+   * Call Anthropic Claude API
+   */
+  private async callAnthropic(
+    model: string,
+    prompt: string,
+    agentName: string
+  ): Promise<{
+    content: string;
+    tokens: { input: number; output: number; total: number };
+    cost: { usd: number; eur: number };
+  }> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error("ANTHROPIC_API_KEY not configured");
+    }
 
-Prompt was: ${prompt.substring(0, 100)}...`;
+    const client = new Anthropic({ apiKey });
 
-    // Mock tokens (you'll get these from actual API response)
-    const inputTokens = Math.floor(prompt.length / 4); // ~4 chars per token
-    const outputTokens = Math.floor(content.length / 4);
+    const response = await client.messages.create({
+      model: model || "claude-3-5-sonnet-20241022",
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      system: `You are ${agentName}, a helpful AI assistant.`,
+    });
+
+    const content =
+      response.content[0].type === "text" ? response.content[0].text : "";
+
+    const inputTokens = response.usage.input_tokens;
+    const outputTokens = response.usage.output_tokens;
+
+    // Cost calculation (Claude 3.5 Sonnet pricing: $3/MTok input, $15/MTok output)
+    const inputCostUSD = (inputTokens / 1_000_000) * 3;
+    const outputCostUSD = (outputTokens / 1_000_000) * 15;
+    const totalCostUSD = inputCostUSD + outputCostUSD;
 
     return {
       content,
@@ -239,8 +290,117 @@ Prompt was: ${prompt.substring(0, 100)}...`;
         total: inputTokens + outputTokens,
       },
       cost: {
-        usd: 0.01, // Mock cost
-        eur: 0.0092,
+        usd: totalCostUSD,
+        eur: totalCostUSD * 0.92, // Approximate EUR conversion
+      },
+    };
+  }
+
+  /**
+   * Call OpenAI GPT API
+   */
+  private async callOpenAI(
+    model: string,
+    prompt: string,
+    agentName: string
+  ): Promise<{
+    content: string;
+    tokens: { input: number; output: number; total: number };
+    cost: { usd: number; eur: number };
+  }> {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY not configured");
+    }
+
+    const client = new OpenAI({ apiKey });
+
+    const response = await client.chat.completions.create({
+      model: model || "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: `You are ${agentName}, a helpful AI assistant.`,
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_tokens: 4096,
+    });
+
+    const content = response.choices[0].message.content || "";
+    const inputTokens = response.usage?.prompt_tokens || 0;
+    const outputTokens = response.usage?.completion_tokens || 0;
+
+    // Cost calculation (GPT-4 pricing: $30/MTok input, $60/MTok output)
+    const inputCostUSD = (inputTokens / 1_000_000) * 30;
+    const outputCostUSD = (outputTokens / 1_000_000) * 60;
+    const totalCostUSD = inputCostUSD + outputCostUSD;
+
+    return {
+      content,
+      tokens: {
+        input: inputTokens,
+        output: outputTokens,
+        total: inputTokens + outputTokens,
+      },
+      cost: {
+        usd: totalCostUSD,
+        eur: totalCostUSD * 0.92,
+      },
+    };
+  }
+
+  /**
+   * Call Google Gemini API
+   */
+  private async callGemini(
+    model: string,
+    prompt: string,
+    agentName: string
+  ): Promise<{
+    content: string;
+    tokens: { input: number; output: number; total: number };
+    cost: { usd: number; eur: number };
+  }> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY not configured");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const geminiModel = genAI.getGenerativeModel({
+      model: model || "gemini-pro",
+    });
+
+    const systemInstruction = `You are ${agentName}, a helpful AI assistant.`;
+    const fullPrompt = `${systemInstruction}\n\n${prompt}`;
+
+    const result = await geminiModel.generateContent(fullPrompt);
+    const response = result.response;
+    const content = response.text();
+
+    // Gemini doesn't provide detailed token usage, estimate it
+    const inputTokens = Math.floor(fullPrompt.length / 4);
+    const outputTokens = Math.floor(content.length / 4);
+
+    // Cost calculation (Gemini pricing: $0.5/MTok input, $1.5/MTok output)
+    const inputCostUSD = (inputTokens / 1_000_000) * 0.5;
+    const outputCostUSD = (outputTokens / 1_000_000) * 1.5;
+    const totalCostUSD = inputCostUSD + outputCostUSD;
+
+    return {
+      content,
+      tokens: {
+        input: inputTokens,
+        output: outputTokens,
+        total: inputTokens + outputTokens,
+      },
+      cost: {
+        usd: totalCostUSD,
+        eur: totalCostUSD * 0.92,
       },
     };
   }
